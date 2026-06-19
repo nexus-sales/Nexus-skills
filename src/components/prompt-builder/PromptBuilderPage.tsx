@@ -41,7 +41,7 @@ export default function PromptBuilderPage() {
   const builder = usePromptBuilder();
   const { history, add: addToHistory, remove: removeFromHistory } = useHistory();
   // L-01: usar useTemplates (conectado a Supabase + clave unificada) en vez de useLocalStorage directo
-  const { custom: customTemplates, save: saveCustomTpl, remove: removeCustomTpl } = useTemplates();
+  const { custom: customTemplates, save: saveCustomTpl } = useTemplates();
   const { mode: appMode, setMode: setAppMode } = useAppMode();
 
   // UI-only local state
@@ -85,7 +85,10 @@ export default function PromptBuilderPage() {
 
   const shareConfig = useCallback(async () => {
     // S-04: excluir campos con datos sensibles del payload compartido
-    const { material, matFile, antiHallucinationNotes, ...shareableState } = builder.state;
+    const shareableState = { ...builder.state };
+    delete shareableState.material;
+    delete shareableState.matFile;
+    delete shareableState.antiHallucinationNotes;
     const url = new URL(window.location.href);
     url.searchParams.set('p', encodeConfig({ ...shareableState, model: builder.model }));
     // L-06: verificar que la URL no supera límites razonables del navegador

@@ -26,8 +26,7 @@ import type {
   WorkflowStep,
 } from '@/types/prompt'
 import type { ProjectBlueprint } from '@/types/blueprint'
-import type { PromptBlueprint } from '@/types/prompt-blueprint'
-import type { PendingQuestion, RequirementSeverity, StructuredProjectBlueprint } from '@/types/project-blueprint'
+import type { StructuredProjectBlueprint } from '@/types/project-blueprint'
 import type {
   NexusAgentDraft,
   NexusExpectedResult,
@@ -309,6 +308,9 @@ function buildPromptTemplateDraft(
 function formatPromptList(items: string[]): string {
   return items.length > 0 ? items.map((item) => `- ${item}`).join('\n') : '- No especificado'
 }
+
+void buildPromptTemplateDraft
+void formatPromptList
 
 function firstMatchingLabel(idea: string, rules: Array<{ keywords: string[]; label: string }>, fallback: string): string {
   const normalizedIdea = normalize(idea)

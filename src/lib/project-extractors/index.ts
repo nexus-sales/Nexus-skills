@@ -92,6 +92,8 @@ export function extractMarketplaceRequirements(idea: string): SpecializedProject
 }
 
 export function extractBookingRequirements(idea: string): SpecializedProjectRequirements {
+  void idea
+
   return {
     functionalities: [
       'Calendario de disponibilidad',
@@ -117,6 +119,8 @@ export function extractBookingRequirements(idea: string): SpecializedProjectRequ
 }
 
 export function extractHelpdeskRequirements(idea: string): SpecializedProjectRequirements {
+  void idea
+
   return {
     functionalities: [
       'Creacion de tickets',
@@ -142,6 +146,8 @@ export function extractHelpdeskRequirements(idea: string): SpecializedProjectReq
 }
 
 export function extractCoursePlatformRequirements(idea: string): SpecializedProjectRequirements {
+  void idea
+
   return {
     functionalities: [
       'Catalogo de cursos',
