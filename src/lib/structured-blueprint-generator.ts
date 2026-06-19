@@ -13,6 +13,11 @@ import { refineProjectDomain } from '@/lib/domain-refinement-engine'
 import type { ProjectBlueprint } from '@/types/blueprint'
 import type { StructuredProjectBlueprint, StructuredProjectCategory } from '@/types/project-blueprint'
 
+const BLOCKING_FALLBACK_QUESTIONS = [
+  'Quien usara la aplicacion?',
+  'Que debe poder hacer un usuario en la primera version?',
+]
+
 const SYNONYMS: Record<string, string> = {
   'pasarela-de-pago': 'payment-gateway',
   'base-de-conocimiento': 'knowledge-base',
@@ -240,6 +245,13 @@ export function generateStructuredBlueprint(
   const hasBlockingDiscovery =
     mergedConfidence < 40 ||
     answeredDraft.confirmedRequirements.length < 2
+  // Invariant: if needsDiscovery, pendingQuestions must be non-empty.
+  // If every catalog and knowledge path produced nothing, use two open questions
+  // so the user always has a way out of the blocked state.
+  const safePendingQuestions =
+    hasBlockingDiscovery && mergedQuestions.length === 0
+      ? normalizePendingQuestions(BLOCKING_FALLBACK_QUESTIONS, category)
+      : mergedQuestions
   const consolidatedIntegrations = refinedDomain.integrationCapabilities.length > 0
     ? refinedDomain.integrationCapabilities.map((capability) => capability.name)
     : answeredDraft.integrations
@@ -265,6 +277,6 @@ export function generateStructuredBlueprint(
     confidence: mergedConfidence,
     confidenceLevel: mergedConfidenceLevel,
     needsDiscovery: hasBlockingDiscovery,
-    pendingQuestions: mergedQuestions,
+    pendingQuestions: safePendingQuestions,
   }
 }
