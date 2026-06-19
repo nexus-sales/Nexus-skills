@@ -21,6 +21,11 @@ const BADGE_CONFIG: Record<ActiveState, BadgeConfig> = {
     wrapperClass: 'border-accent-blue/30 bg-accent-blue/10 text-accent-blue',
     spin: false,
   },
+  classifying: {
+    label: 'Clasificando dominio...',
+    wrapperClass: 'border-violet-500/50 bg-violet-500/10 text-violet-400',
+    spin: true,
+  },
   enriching: {
     label: 'Mejorando con Claude...',
     wrapperClass: 'border-accent-blue/50 bg-accent-blue/15 text-accent-blue',
@@ -47,6 +52,7 @@ function StateIcon({ state, spin }: { state: ActiveState; spin: boolean }) {
   const cls = `h-3.5 w-3.5 shrink-0${spin ? ' animate-spin' : ''}`
   switch (state) {
     case 'blueprint_ready': return <Cpu className={cls} aria-hidden="true" />
+    case 'classifying':     return <Loader2 className={cls} aria-hidden="true" />
     case 'enriching':       return <Loader2 className={cls} aria-hidden="true" />
     case 'completed':       return <CheckCircle2 className={cls} aria-hidden="true" />
     case 'fallback_local':  return <TriangleAlert className={cls} aria-hidden="true" />

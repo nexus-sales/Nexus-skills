@@ -7,6 +7,7 @@ import {
   mergeWithApiArtifacts,
 } from '@/lib/nexus-system-generator'
 import { prepareBlueprintForApi } from '@/lib/prepare-blueprint-for-api'
+import type { AiClassification } from '@/types/ai-classification'
 import type {
   NexusAgentDraft,
   NexusExpectedResult,
@@ -27,6 +28,7 @@ const NEXUS_CLIENT_TIMEOUT_MS = 30_000
 export type NexusGenerationState =
   | 'idle'
   | 'blueprint_ready'
+  | 'classifying'
   | 'enriching'
   | 'completed'
   | 'fallback_local'
@@ -370,6 +372,48 @@ export function useNexusSystem() {
       setGenerationState('error')
       setIsGenerating(false)
       return
+    }
+
+    // ── Fase 1.5: clasificación con IA si el dominio no fue reconocido ─────────
+    const needsAiClassification =
+      localSystem.structuredBlueprint?.category === 'custom' ||
+      (localSystem.structuredBlueprint?.confidence ?? 0) < 40
+
+    if (needsAiClassification) {
+      setGenerationState('classifying')
+
+      const classifyController = new AbortController()
+      const classifyTimeoutId = setTimeout(() => classifyController.abort(), NEXUS_CLIENT_TIMEOUT_MS)
+      let classification: AiClassification | null = null
+
+      try {
+        const classifyResponse = await fetch('/api/nexus/classify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idea: cleanIdea }),
+          signal: classifyController.signal,
+        })
+        if (classifyResponse.ok) {
+          const classifyJson: unknown = await classifyResponse.json()
+          if (
+            typeof classifyJson === 'object' &&
+            classifyJson !== null &&
+            'classification' in classifyJson
+          ) {
+            classification = (classifyJson as { classification: AiClassification }).classification
+          }
+        }
+      } catch {
+        // Network error or timeout — continue with local custom system
+      } finally {
+        clearTimeout(classifyTimeoutId)
+      }
+
+      if (classification) {
+        const reclassified = generateLocalNexusSystem(cleanIdea, classification)
+        localSystem = reclassified
+        setSystem(reclassified)
+      }
     }
 
     // ── Fase 2: enriquecimiento con Claude ────────────────────────────────────
