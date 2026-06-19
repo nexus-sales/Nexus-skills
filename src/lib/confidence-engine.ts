@@ -84,7 +84,7 @@ export function classifyQuestionSeverity(
   return 'important'
 }
 
-function questionReason(question: string, severity: RequirementSeverity, category: StructuredProjectCategory): string {
+function questionReason(_question: string, severity: RequirementSeverity, category: StructuredProjectCategory): string {
   if (severity === 'critical') {
     if (category === 'marketplace') return 'Define arquitectura comercial, pedidos y checkout.'
     if (category === 'booking-system') return 'Define agenda, disponibilidad y reglas de reserva.'
@@ -128,7 +128,7 @@ export function calculateBlueprintConfidence(blueprint: ConfidenceInput): number
   let score = 0
   const usefulWords = usefulWordCount(blueprint.originalIdea)
 
-  if (blueprint.category !== 'custom') score += 25
+  if (blueprint.category !== 'custom' || blueprint.aiClassified) score += 25
   if (blueprint.objective && !blueprint.objective.toLowerCase().includes('definir y construir')) score += 15
   if (blueprint.audience.length > 0 && !blueprint.audience.includes('usuarios-objetivo-del-proyecto')) score += 10
   score += Math.min(18, blueprint.confirmedRequirements.length * 6)
@@ -139,7 +139,7 @@ export function calculateBlueprintConfidence(blueprint: ConfidenceInput): number
 
   if (blueprint.originalIdea.length < 28) score -= 10
   if (usefulWords < 5) score -= 15
-  if (blueprint.category === 'custom') score -= 20
+  if (blueprint.category === 'custom' && !blueprint.aiClassified) score -= 20
   if (blueprint.confirmedRequirements.length === 0 && blueprint.inferredRequirements.length === 0) score -= 15
   if (blueprint.entities.length === 0) score -= 10
 
