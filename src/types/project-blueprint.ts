@@ -43,6 +43,7 @@ export interface StructuredProjectBlueprint {
   confidence: number
   confidenceLevel: 'high' | 'medium' | 'low'
   needsDiscovery: boolean
+  aiClassified?: boolean
   originalIdea: string
   baseIdea?: string
   incorporatedDiscoveryAnswers?: string[]

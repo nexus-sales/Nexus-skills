@@ -169,6 +169,7 @@ export function generateStructuredBlueprint(
     confidence: 0,
     confidenceLevel: 'low' as const,
     needsDiscovery: true,
+    aiClassified: Boolean(classificationOverride),
     originalIdea: projectBlueprint.originalIdea,
     baseIdea: projectBlueprint.originalIdea,
     incorporatedDiscoveryAnswers: [],
