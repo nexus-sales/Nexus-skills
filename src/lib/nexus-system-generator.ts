@@ -27,6 +27,7 @@ import type {
 } from '@/types/prompt'
 import type { ProjectBlueprint } from '@/types/blueprint'
 import type { StructuredProjectBlueprint } from '@/types/project-blueprint'
+import type { AiClassification } from '@/types/ai-classification'
 import type {
   NexusAgentDraft,
   NexusExpectedResult,
@@ -1101,7 +1102,7 @@ export function buildNexusStages(completedAt: string): NexusSystemStage[] {
   }))
 }
 
-export function generateLocalNexusSystem(idea: string): NexusSystem {
+export function generateLocalNexusSystem(idea: string, classificationOverride?: AiClassification): NexusSystem {
   const originalIdea = idea.trim()
   if (!originalIdea) {
     throw new Error('La idea no puede estar vacia')
@@ -1109,10 +1110,27 @@ export function generateLocalNexusSystem(idea: string): NexusSystem {
 
   const createdAt = new Date().toISOString()
   const blueprint = generateProjectBlueprint(originalIdea)
-  const structuredBlueprint = generateStructuredBlueprint(originalIdea, blueprint)
+  const structuredBlueprint = generateStructuredBlueprint(originalIdea, blueprint, classificationOverride)
   const promptBlueprint = generatePromptBlueprint(structuredBlueprint)
+  const rawAnalysis = analysisFromBlueprint(blueprint)
+  let analysisOverrides: Partial<NexusIdeaAnalysis> = {}
+  if (classificationOverride) {
+    const projectType = classificationOverride.subtype
+      ? `${structuredBlueprint.category} / ${classificationOverride.subtype}`
+      : structuredBlueprint.category
+    const objective = classificationOverride.objective || rawAnalysis.objective
+    const audience = classificationOverride.audience.join(', ') || rawAnalysis.audience
+    analysisOverrides = {
+      domain: projectType,
+      projectType,
+      objective,
+      audience,
+      summary: `Objetivo: ${objective}. Audiencia: ${audience}. Tipo: ${projectType}. Categoria: ${structuredBlueprint.category}.`,
+    }
+  }
   const analysis = {
-    ...analysisFromBlueprint(blueprint),
+    ...rawAnalysis,
+    ...analysisOverrides,
     confidence: structuredBlueprint.confidence / 100,
     pendingQuestions: structuredBlueprint.pendingQuestions.map((question) => question.question),
   }

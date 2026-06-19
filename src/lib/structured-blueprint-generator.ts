@@ -1,4 +1,5 @@
 import { DOMAIN_CATALOG } from '@/lib/domain-catalog'
+import type { AiClassification } from '@/types/ai-classification'
 import { generateProjectBlueprint } from '@/lib/blueprint-generator'
 import { calculateBlueprintConfidence, getConfidenceLevel, normalizePendingQuestions } from '@/lib/confidence-engine'
 import {
@@ -121,12 +122,25 @@ function filterKnowledgeQuestions(
 
 export function generateStructuredBlueprint(
   idea: string,
-  projectBlueprint = generateProjectBlueprint(idea)
+  projectBlueprint = generateProjectBlueprint(idea),
+  classificationOverride?: AiClassification
 ): StructuredProjectBlueprint {
-  const category = mapCategory(projectBlueprint.category)
-  const defaults = getDomainDefaults(category)
-  const confirmedRequirements = uniqueValues(projectBlueprint.confirmedFeatures ?? [])
-  const inferredRequirements = removeKnown(projectBlueprint.inferredFeatures ?? [], confirmedRequirements)
+  const category = classificationOverride?.category ?? mapCategory(projectBlueprint.category)
+  const defaults = classificationOverride
+    ? {
+        defaultScreens: classificationOverride.screens,
+        defaultEntities: classificationOverride.entities,
+        defaultRoles: classificationOverride.roles,
+        defaultSuggestedIntegrations: classificationOverride.integrations,
+        defaultRisks: [] as string[],
+      }
+    : getDomainDefaults(category)
+  const confirmedRequirements = classificationOverride
+    ? uniqueValues(classificationOverride.confirmedRequirements)
+    : uniqueValues(projectBlueprint.confirmedFeatures ?? [])
+  const inferredRequirements = classificationOverride
+    ? uniqueValues(classificationOverride.suggestedRequirements)
+    : removeKnown(projectBlueprint.inferredFeatures ?? [], confirmedRequirements)
   const suggestedRequirements = uniqueValues([
     ...(projectBlueprint.suggestedMonetization ?? []),
     ...(projectBlueprint.suggestedVisualDesign ?? []),
@@ -141,9 +155,9 @@ export function generateStructuredBlueprint(
   const draft = {
     id: projectBlueprint.id,
     category,
-    subtype: 'generic',
-    subtypeConfidence: 0,
-    subtypeReasoning: '',
+    subtype: classificationOverride?.subtype ?? 'generic',
+    subtypeConfidence: classificationOverride?.confidence ?? 0,
+    subtypeReasoning: classificationOverride?.reasoning ?? '',
     subtypeSignals: [],
     businessModel: undefined,
     mvpScope: [],
@@ -158,8 +172,10 @@ export function generateStructuredBlueprint(
     originalIdea: projectBlueprint.originalIdea,
     baseIdea: projectBlueprint.originalIdea,
     incorporatedDiscoveryAnswers: [],
-    objective: projectBlueprint.objective,
-    audience: uniqueValues([projectBlueprint.audience]),
+    objective: classificationOverride?.objective ?? projectBlueprint.objective,
+    audience: classificationOverride?.audience.length
+      ? uniqueValues(classificationOverride.audience)
+      : uniqueValues([projectBlueprint.audience]),
     confirmedRequirements,
     inferredRequirements,
     suggestedRequirements,
@@ -222,7 +238,6 @@ export function generateStructuredBlueprint(
   const mergedConfidenceLevel = getConfidenceLevel(mergedConfidence)
   const hasBlockingDiscovery =
     mergedConfidence < 40 ||
-    category === 'custom' ||
     answeredDraft.confirmedRequirements.length < 2
   const consolidatedIntegrations = refinedDomain.integrationCapabilities.length > 0
     ? refinedDomain.integrationCapabilities.map((capability) => capability.name)
@@ -233,9 +248,9 @@ export function generateStructuredBlueprint(
 
   return {
     ...answeredDraft,
-    subtype: refinedDomain.subtype,
-    subtypeConfidence: refinedDomain.confidence,
-    subtypeReasoning: refinedDomain.reasoning,
+    subtype: classificationOverride?.subtype ?? refinedDomain.subtype,
+    subtypeConfidence: classificationOverride?.confidence ?? refinedDomain.confidence,
+    subtypeReasoning: classificationOverride?.reasoning ?? refinedDomain.reasoning,
     subtypeSignals: refinedDomain.signals,
     businessModel: refinedDomain.businessModel,
     mvpScope: uniqueValues([...refinedDomain.mvpScope, ...knowledgeRules.mvpDefaults]),
