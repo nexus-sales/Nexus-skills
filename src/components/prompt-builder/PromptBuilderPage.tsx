@@ -85,10 +85,8 @@ export default function PromptBuilderPage() {
 
   const shareConfig = useCallback(async () => {
     // S-04: excluir campos con datos sensibles del payload compartido
-    const shareableState = { ...builder.state };
-    delete shareableState.material;
-    delete shareableState.matFile;
-    delete shareableState.antiHallucinationNotes;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { material, matFile, antiHallucinationNotes, ...shareableState } = builder.state;
     const url = new URL(window.location.href);
     url.searchParams.set('p', encodeConfig({ ...shareableState, model: builder.model }));
     // L-06: verificar que la URL no supera límites razonables del navegador

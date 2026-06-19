@@ -13,7 +13,7 @@ import type {
 } from '@/types/project-blueprint'
 import type { NexusApiArtifacts } from '@/types/nexus-api'
 
-const DEFAULT_MODEL = 'claude-3-5-sonnet-latest'
+const DEFAULT_MODEL = 'claude-haiku-4-5-20251001'
 const DEFAULT_MAX_TOKENS = 4096
 const DEFAULT_TIMEOUT_MS = 25_000
 

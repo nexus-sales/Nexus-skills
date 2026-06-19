@@ -208,8 +208,17 @@ El Prompt Builder en `/prompt-builder` tiene 3 modos controlados por `useAppMode
 ## VARIABLES DE ENTORNO
 
 ```env
-# Anthropic — necesario para TestPanel
+# Anthropic — necesario para /api/nexus/generate y TestPanel
 ANTHROPIC_API_KEY=sk-ant-...
+
+# Modelo para enriquecimiento Nexus (por defecto: claude-haiku-4-5-20251001)
+ANTHROPIC_MODEL=claude-haiku-4-5-20251001
+
+# Tokens máximos por respuesta (por defecto: 4096)
+ANTHROPIC_MAX_TOKENS=4096
+
+# Timeout del fetch a Anthropic en ms (por defecto: 25000)
+ANTHROPIC_TIMEOUT_MS=25000
 
 # Supabase — opcional en local, necesario para auth y sync en producción
 NEXT_PUBLIC_SUPABASE_URL=
