@@ -10,14 +10,14 @@ const DEFAULT_TIMEOUT_MS = 20_000
 const ARCHETYPES_LIST = `- booking-system: agenda, citas, reservas, disponibilidad, control de acceso, cuotas periódicas
 - course-platform: cursos, aprendizaje, alumnos, instructores, lecciones, módulos
 - landing-page: captación de leads, conversión, formularios de contacto, propuesta de valor
-- marketplace: catálogo de productos, vendedores, compradores, listings, precios
+- marketplace: catálogo CON VENTA, vendedores, compradores, carrito, precios, transacciones
 - crm: seguimiento comercial, leads, pipeline, clientes potenciales, oportunidades
 - support-system: incidencias, tickets, helpdesk, soporte al cliente, SLA
-- content-system: blog, artículos, publicaciones, editorial, contenido
-- custom: solo si ninguno de los anteriores encaja de forma razonable`
+- content-system: catálogo de fichas, directorio, enciclopedia, recetario, guías, blog, artículos — el sistema ORGANIZA Y MUESTRA información sin venta ni reservas
+- custom: ÚLTIMO RECURSO — solo si ninguno encaja estructuralmente tras análisis cuidadoso`
 
 function buildClassifySystemPrompt(): string {
-  return `You are a software project architect. Classify a project idea into the closest system archetype — by what the system actually does, NOT by the business domain name.
+  return `You are a software project architect. Classify a project idea into the closest system archetype — by what the system actually does structurally, NOT by the business domain name.
 
 Available archetypes:
 ${ARCHETYPES_LIST}
@@ -31,7 +31,14 @@ MAPPING GUIDANCE (domain → archetype):
 - Dog grooming / hair salon → booking-system (appointment management)
 - Language academy → course-platform or booking-system (classes + students)
 - Driving instructor → booking-system (lesson slots)
-Choose 'custom' ONLY when no archetype fits even loosely.
+- Plant catalog / botanical app → content-system (species cards, care guides, informational directory — no purchases, no bookings)
+- Recipe collection / cookbook / gastronomy guide → content-system (recipes, ingredients, categories — no cart)
+- Informational product or item catalog WITHOUT purchase → content-system (not marketplace)
+- Species / animal / mineral / object directory → content-system (encyclopedic, searchable)
+- Internal reference guide / knowledge base → content-system
+- Any catalog WITH purchase or checkout → marketplace (not content-system)
+- Any directory WITH appointment booking → booking-system (not content-system)
+CRITICAL: Choose 'custom' ONLY as a genuine last resort when NO archetype fits structurally. Most projects map to an archetype by their underlying system mechanics. If uncertain between two archetypes, pick the closer one — never default to 'custom' out of uncertainty.
 
 Extract domain-specific (NOT generic) entities, roles, screens, and requirements from the idea.
 
