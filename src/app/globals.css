@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+:root {
+  --font-syne: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-space-mono: "Cascadia Mono", "Consolas", "Courier New", monospace;
+  --bg: #0a0e1a;
+  --surface: #111827;
+  --surface2: #1a2236;
+  --surface3: #0f1520;
+  --border: #1e2d45;
+  --border2: #243451;
+  --accent: #00e5a0;
+  --accent-rgb: 0, 229, 160;
+  --accent2: #0099ff;
+  --accent2-rgb: 0, 153, 255;
+  --accent3: #7c6bff;
+  --text: #e8edf5;
+  --muted: #5a7090;
+  --label: #8ba3c0;
+}
+
+@theme inline {
+  --font-syne: var(--font-syne);
+  --font-mono: var(--font-space-mono);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-surface3: var(--surface3);
+  --color-border: var(--border);
+  --color-border2: var(--border2);
+  --color-accent: var(--accent);
+  --color-accent-blue: var(--accent2);
+  --color-accent-purple: var(--accent3);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-label: var(--label);
+}
+
+.light-mode {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface2: #f1f5f9;
+  --surface3: #f8fafc;
+  --border: #e2e8f0;
+  --border2: #cbd5e1;
+  --text: #0f172a;
+  --muted: #64748b;
+  --label: #475569;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-syne), sans-serif;
+}
+
+.logo-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .4; transform: scale(.7); }
+}
+
+@keyframes fade-in-down {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.18s ease-out both;
+}
+
+.animate-fade-in-down {
+  animation: fade-in-down 0.18s ease-out both;
+}
