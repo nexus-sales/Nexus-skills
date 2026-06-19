@@ -59,14 +59,17 @@ export function generateDiscoveryQuestions(
     ]
   }
 
-  // AI-classified blueprints with a specific subtype already have domain data —
-  // returning generic custom questions would be misleading and redundant.
+  // AI-classified blueprints with a specific subtype and sufficient confirmed requirements
+  // already have domain data — returning generic custom questions would be misleading.
+  // Guard: only bypass when confirmedRequirements >= 2, so the blueprint won't block.
+  // If < 2 confirmed, fall through to the filtered catalog so the user has questions to answer.
   if (
     typeof categoryOrBlueprint !== 'string' &&
     categoryOrBlueprint.aiClassified &&
     category === 'custom' &&
     categoryOrBlueprint.subtype &&
-    categoryOrBlueprint.subtype !== 'generic'
+    categoryOrBlueprint.subtype !== 'generic' &&
+    categoryOrBlueprint.confirmedRequirements.length >= 2
   ) {
     return []
   }
