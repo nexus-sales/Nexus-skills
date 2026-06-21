@@ -210,7 +210,7 @@ const SKILL_DEFINITIONS: Record<StructuredProjectCategory, DomainSkillDefinition
 // ─── Domain derivation helpers ────────────────────────────────────────────────
 
 // Entities too generic to drive the skill name or explanation
-const GENERIC_ENTITIES = new Set([
+export const GENERIC_ENTITIES = new Set([
   'usuario', 'administrador', 'sistema', 'datos', 'informacion', 'aplicacion', 'categoria',
 ])
 
@@ -226,25 +226,25 @@ const CATEGORY_VERB: Record<StructuredProjectCategory, string> = {
   custom: 'Gestión de',
 }
 
-function pluralizeEs(word: string): string {
+export function pluralizeEs(word: string): string {
   if (word.endsWith('s')) return word
   if (/[aeiouáéíóúü]$/.test(word)) return word + 's'
   return word + 'es'
 }
 
-function humanizeEntity(entity: string): string {
+export function humanizeEntity(entity: string): string {
   return entity.split('-').join(' ')
 }
 
 // 'acceso-qr' → 'accesos QR', 'planta' → 'plantas'
-function humanizePlural(entity: string): string {
+export function humanizePlural(entity: string): string {
   const parts = entity.split('-')
   if (parts.length === 1) return pluralizeEs(entity)
   return pluralizeEs(parts[0]) + ' ' + parts.slice(1).join(' ').toUpperCase()
 }
 
 // 'y' → 'e' before words starting with i/hi (Spanish conjunction rule)
-function joinWithConnector(a: string, b: string): string {
+export function joinWithConnector(a: string, b: string): string {
   return /^[iíI]/.test(b) ? `${a} e ${b}` : `${a} y ${b}`
 }
 
@@ -253,7 +253,7 @@ function capitalize(s: string): string {
 }
 
 // Returns up to 2 non-generic entities from the blueprint
-function topDomainEntities(blueprint: StructuredProjectBlueprint): string[] {
+export function topDomainEntities(blueprint: StructuredProjectBlueprint): string[] {
   return blueprint.entities.filter((e) => !GENERIC_ENTITIES.has(e)).slice(0, 2)
 }
 
