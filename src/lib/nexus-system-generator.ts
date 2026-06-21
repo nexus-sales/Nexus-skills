@@ -2,7 +2,14 @@ import { PREDEFINED_AGENTS } from '@/constants/agents'
 import { PREDEFINED_SKILLS } from '@/constants/skills'
 import { TEMPLATES } from '@/constants/templates'
 import { generateProjectBlueprint } from '@/lib/blueprint-generator'
-import { generateDomainSkill } from '@/lib/domain-skill-generator'
+import {
+  generateDomainSkill,
+  humanizeEntity,
+  humanizePlural,
+  joinWithConnector,
+  pluralizeEs,
+  topDomainEntities,
+} from '@/lib/domain-skill-generator'
 import { generatePromptBlueprint, renderFinalPromptFromBlueprint } from '@/lib/prompt-blueprint-generator'
 import { generateStructuredBlueprint } from '@/lib/structured-blueprint-generator'
 import { detectProjectType, type ProjectCategory } from '@/lib/project-detector'
@@ -26,7 +33,7 @@ import type {
   WorkflowStep,
 } from '@/types/prompt'
 import type { ProjectBlueprint } from '@/types/blueprint'
-import type { StructuredProjectBlueprint } from '@/types/project-blueprint'
+import type { StructuredProjectBlueprint, StructuredProjectCategory } from '@/types/project-blueprint'
 import type { AiClassification } from '@/types/ai-classification'
 import type {
   NexusAgentDraft,
@@ -900,62 +907,187 @@ export function generateSkillFromPrompt(
   }
 }
 
+// ─── Domain workflow derivation ───────────────────────────────────────────────
+
+interface StepTemplate {
+  idSuffix: string
+  labelTemplate: string
+  type: WorkflowStep['type']
+}
+
+interface CategoryFlow {
+  steps: StepTemplate[]
+  fallbackE0: string
+  fallbackE1: string
+}
+
+const CATEGORY_FLOW: Record<StructuredProjectCategory, CategoryFlow> = {
+  'booking-system': {
+    fallbackE0: 'cliente', fallbackE1: 'reserva',
+    steps: [
+      { idSuffix: 'register', labelTemplate: 'Registrar {e0}', type: 'skill' },
+      { idSuffix: 'schedule', labelTemplate: 'Programar {e1}', type: 'skill' },
+      { idSuffix: 'confirm',  labelTemplate: 'Confirmar',      type: 'skill' },
+      { idSuffix: 'followup', labelTemplate: 'Seguimiento',    type: 'skill' },
+    ],
+  },
+  'content-system': {
+    fallbackE0: 'contenido', fallbackE1: 'contenido',
+    steps: [
+      { idSuffix: 'add',      labelTemplate: 'Añadir {e0}',             type: 'skill' },
+      { idSuffix: 'complete', labelTemplate: 'Completar ficha de {e0}', type: 'skill' },
+      { idSuffix: 'organize', labelTemplate: 'Organizar {e0p}',         type: 'skill' },
+      { idSuffix: 'browse',   labelTemplate: 'Consultar catálogo',      type: 'skill' },
+    ],
+  },
+  marketplace: {
+    fallbackE0: 'producto', fallbackE1: 'producto',
+    steps: [
+      { idSuffix: 'publish', labelTemplate: 'Publicar {e0}',     type: 'skill' },
+      { idSuffix: 'catalog', labelTemplate: 'Gestionar catálogo', type: 'skill' },
+      { idSuffix: 'receive', labelTemplate: 'Recibir pedido',     type: 'skill' },
+      { idSuffix: 'process', labelTemplate: 'Procesar pedido',    type: 'skill' },
+    ],
+  },
+  'course-platform': {
+    fallbackE0: 'alumno', fallbackE1: 'módulo',
+    steps: [
+      { idSuffix: 'register', labelTemplate: 'Registrar {e0}', type: 'skill' },
+      { idSuffix: 'add',      labelTemplate: 'Añadir {e1}',    type: 'skill' },
+      { idSuffix: 'progress', labelTemplate: 'Seguir progreso', type: 'skill' },
+      { idSuffix: 'evaluate', labelTemplate: 'Evaluar avance',  type: 'skill' },
+    ],
+  },
+  'landing-page': {
+    fallbackE0: 'visitante', fallbackE1: 'visitante',
+    steps: [
+      { idSuffix: 'capture',  labelTemplate: 'Captar {e0}',        type: 'skill' },
+      { idSuffix: 'validate', labelTemplate: 'Validar contacto',   type: 'skill' },
+      { idSuffix: 'assign',   labelTemplate: 'Asignar canal',      type: 'skill' },
+      { idSuffix: 'followup', labelTemplate: 'Seguir el contacto', type: 'skill' },
+    ],
+  },
+  'support-system': {
+    fallbackE0: 'incidencia', fallbackE1: 'incidencia',
+    steps: [
+      { idSuffix: 'report',   labelTemplate: 'Reportar {e0}',           type: 'skill' },
+      { idSuffix: 'classify', labelTemplate: 'Clasificar y priorizar',  type: 'skill' },
+      { idSuffix: 'resolve',  labelTemplate: 'Resolver {e0}',           type: 'skill' },
+      { idSuffix: 'close',    labelTemplate: 'Cerrar y documentar',     type: 'skill' },
+    ],
+  },
+  crm: {
+    fallbackE0: 'contacto', fallbackE1: 'contacto',
+    steps: [
+      { idSuffix: 'register',    labelTemplate: 'Registrar {e0}',                 type: 'skill' },
+      { idSuffix: 'followup',    labelTemplate: 'Hacer seguimiento a {e0p}',      type: 'skill' },
+      { idSuffix: 'opportunity', labelTemplate: 'Gestionar oportunidad',           type: 'skill' },
+      { idSuffix: 'close',       labelTemplate: 'Registrar resultado',             type: 'skill' },
+    ],
+  },
+  custom: {
+    fallbackE0: 'entrada', fallbackE1: 'datos',
+    steps: [
+      { idSuffix: 'register', labelTemplate: 'Registrar {e0}',      type: 'skill' },
+      { idSuffix: 'process',  labelTemplate: 'Procesar {e0p}',      type: 'skill' },
+      { idSuffix: 'validate', labelTemplate: 'Validar resultado',   type: 'skill' },
+      { idSuffix: 'deliver',  labelTemplate: 'Entregar resultado',  type: 'skill' },
+    ],
+  },
+}
+
+const WORKFLOW_VERB: Record<StructuredProjectCategory, string> = {
+  'booking-system':  'gestión de',
+  marketplace:       'gestión de',
+  'course-platform': 'gestión de',
+  'landing-page':    'captación de',
+  'support-system':  'soporte de',
+  crm:               'gestión de',
+  'content-system':  'gestión de',
+  custom:            'gestión de',
+}
+
+// Person-centered archetypes: {e0} should be the entity that appears in blueprint.roles
+const PERSON_CENTERED = new Set<StructuredProjectCategory>([
+  'booking-system', 'crm', 'course-platform', 'landing-page', 'support-system',
+])
+
+function resolveWorkflowEntities(
+  blueprint: StructuredProjectBlueprint,
+  flow: CategoryFlow,
+): { rawE0: string; rawE1: string; e0: string; e0p: string; e1: string } {
+  const top = topDomainEntities(blueprint)
+  let rawE0 = top[0] ?? ''
+  let rawE1 = top[1] ?? ''
+
+  // For person-centered archetypes, prefer the entity that appears in roles as e0
+  if (PERSON_CENTERED.has(blueprint.category) && top.length >= 2) {
+    const roleSet = new Set(blueprint.roles.map((r) => r.toLowerCase()))
+    if (!roleSet.has(rawE0) && roleSet.has(rawE1)) {
+      ;[rawE0, rawE1] = [rawE1, rawE0]
+    }
+  }
+
+  return {
+    rawE0,
+    rawE1,
+    e0:  rawE0 ? humanizeEntity(rawE0)  : flow.fallbackE0,
+    e0p: rawE0 ? humanizePlural(rawE0)  : pluralizeEs(flow.fallbackE0),
+    e1:  rawE1 ? humanizeEntity(rawE1)  : flow.fallbackE1,
+  }
+}
+
+function fillStepLabel(template: string, e0: string, e0p: string, e1: string): string {
+  return template.replace('{e0p}', e0p).replace('{e0}', e0).replace('{e1}', e1)
+}
+
 export function generateWorkflowFromSkill(
-  idea: string,
-  skillDraft = generateSkillFromPrompt(idea),
+  _idea: string,
+  _skillDraft = generateSkillFromPrompt(_idea),
   blueprint?: StructuredProjectBlueprint
 ): NexusWorkflowDraft {
-  const heuristics = buildHeuristics(idea)
-  const analysis = analyzeIdea(idea)
-  const subtype = blueprint?.subtype && blueprint.subtype !== 'generic' ? blueprint.subtype : ''
-  const workflowName = subtype === 'artisan-catalog'
-    ? 'Flujo de publicación y venta artesanal local'
-    : subtype
-      ? `Workflow ${subtype}`
-      : `Workflow Nexus - ${analysis.projectType}`
-  const steps: WorkflowStep[] = [
-    {
-      id: 'step_idea_analysis',
-      order: 0,
-      type: 'prompt',
-      refId: 'nexus_idea_analysis',
-      label: 'Analizar idea inicial',
-    },
-    {
-      id: 'step_reusable_skill',
-      order: 1,
-      type: 'skill',
-      refId: 'draft_skill_nexus',
-      label: skillDraft.name,
-      inputFrom: 'step_idea_analysis',
-    },
-    {
-      id: 'step_agent_execution',
-      order: 2,
-      type: 'agent',
-      refId: heuristics.baseAgent.id,
-      label: heuristics.baseAgent.name,
-      inputFrom: 'step_reusable_skill',
-    },
-    {
-      id: 'step_final_system',
-      order: 3,
-      type: 'prompt',
-      refId: 'nexus_final_system',
-      label: 'Consolidar sistema final y resultado esperado',
-      inputFrom: 'step_agent_execution',
-    },
-  ]
+  const flow = blueprint ? CATEGORY_FLOW[blueprint.category] : CATEGORY_FLOW.custom
+  const resolved = blueprint
+    ? resolveWorkflowEntities(blueprint, flow)
+    : { rawE0: '', rawE1: '', e0: flow.fallbackE0, e0p: pluralizeEs(flow.fallbackE0), e1: flow.fallbackE1 }
+
+  const { rawE0, rawE1, e0, e0p, e1 } = resolved
+
+  // Name: "Flujo de {verb} {e0plural} y {e1plural}"
+  const verb = blueprint ? WORKFLOW_VERB[blueprint.category] : 'gestión de'
+  const nameE0p = rawE0 ? humanizePlural(rawE0) : pluralizeEs(flow.fallbackE0)
+  const nameE1p = rawE1 ? humanizePlural(rawE1) : null
+  const namePhrase = nameE1p ? joinWithConnector(nameE0p, nameE1p) : nameE0p
+  const workflowName = `Flujo de ${verb} ${namePhrase}`
+
+  // Steps
+  const steps: WorkflowStep[] = flow.steps.map((tpl, index) => ({
+    id: `step_${tpl.idSuffix}`,
+    order: index,
+    type: tpl.type,
+    refId: `domain_${tpl.idSuffix}`,
+    label: fillStepLabel(tpl.labelTemplate, e0, e0p, e1),
+    ...(index > 0 ? { inputFrom: `step_${flow.steps[index - 1].idSuffix}` } : {}),
+  }))
+
+  // beginnerExplanation
+  const firstThree = steps.slice(0, 3).map((s) => s.label).join(' → ')
+  const beginnerExplanation =
+    `Un workflow es la secuencia de pasos que tu sistema sigue de principio a fin. ` +
+    `En tu proyecto el flujo es: ${firstThree}. Cada paso usa el resultado del anterior.`
+
+  const description = blueprint?.subtype && blueprint.subtype !== 'generic'
+    ? `Secuencia de pasos para gestionar ${namePhrase} en el sistema.`
+    : `Secuencia de pasos para gestionar ${namePhrase} en el sistema.`
 
   return {
     name: workflowName,
-    description: subtype
-      ? `Flujo local especializado para ${subtype}.`
-      : 'Flujo local para convertir la idea en un sistema de IA reutilizable.',
+    description,
     steps,
+    beginnerExplanation,
     compatibleWorkflow: {
       name: workflowName,
-      description: `Idea a sistema: ${idea.trim()}`,
+      description,
       icon: 'N',
       steps,
     },
