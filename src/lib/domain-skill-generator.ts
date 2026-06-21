@@ -21,6 +21,7 @@ export interface DomainSkillDraft extends NexusSkillDraft {
   inputs: DomainSkillInput[]
   outputs: DomainSkillOutput[]
   rules: DomainSkillRule[]
+  beginnerExplanation: string
 }
 
 interface DomainSkillDefinition {
@@ -32,6 +33,8 @@ interface DomainSkillDefinition {
   rules: DomainSkillRule[]
   example: string
 }
+
+// ─── Archetypes — structural scaffolding and fallback ─────────────────────────
 
 const SKILL_DEFINITIONS: Record<StructuredProjectCategory, DomainSkillDefinition> = {
   'booking-system': {
@@ -204,6 +207,185 @@ const SKILL_DEFINITIONS: Record<StructuredProjectCategory, DomainSkillDefinition
   },
 }
 
+// ─── Domain derivation helpers ────────────────────────────────────────────────
+
+// Entities too generic to drive the skill name or explanation
+const GENERIC_ENTITIES = new Set([
+  'usuario', 'administrador', 'sistema', 'datos', 'informacion', 'aplicacion', 'categoria',
+])
+
+// Verb prefix by archetype category
+const CATEGORY_VERB: Record<StructuredProjectCategory, string> = {
+  'booking-system': 'Gestión de',
+  marketplace: 'Catálogo de',
+  'course-platform': 'Gestión de',
+  'landing-page': 'Captación en',
+  'support-system': 'Soporte de',
+  crm: 'Gestión comercial de',
+  'content-system': 'Catálogo de',
+  custom: 'Gestión de',
+}
+
+function pluralizeEs(word: string): string {
+  if (word.endsWith('s')) return word
+  if (/[aeiouáéíóúü]$/.test(word)) return word + 's'
+  return word + 'es'
+}
+
+function humanizeEntity(entity: string): string {
+  return entity.split('-').join(' ')
+}
+
+// 'acceso-qr' → 'accesos QR', 'planta' → 'plantas'
+function humanizePlural(entity: string): string {
+  const parts = entity.split('-')
+  if (parts.length === 1) return pluralizeEs(entity)
+  return pluralizeEs(parts[0]) + ' ' + parts.slice(1).join(' ').toUpperCase()
+}
+
+// 'y' → 'e' before words starting with i/hi (Spanish conjunction rule)
+function joinWithConnector(a: string, b: string): string {
+  return /^[iíI]/.test(b) ? `${a} e ${b}` : `${a} y ${b}`
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+// Returns up to 2 non-generic entities from the blueprint
+function topDomainEntities(blueprint: StructuredProjectBlueprint): string[] {
+  return blueprint.entities.filter((e) => !GENERIC_ENTITIES.has(e)).slice(0, 2)
+}
+
+// ─── Derivation functions ─────────────────────────────────────────────────────
+
+function deriveSkillName(
+  blueprint: StructuredProjectBlueprint,
+  fallback: DomainSkillDefinition,
+): string {
+  const top = topDomainEntities(blueprint)
+  if (top.length === 0) return fallback.name
+
+  const verb = CATEGORY_VERB[blueprint.category]
+  const plurals = top.map(humanizePlural)
+  const phrase = plurals.length === 2 ? joinWithConnector(plurals[0], plurals[1]) : plurals[0]
+  return `${verb} ${phrase}`
+}
+
+function deriveSkillDescription(
+  blueprint: StructuredProjectBlueprint,
+  fallback: DomainSkillDefinition,
+): string {
+  const { objective } = blueprint
+  const isGeneric =
+    !objective ||
+    objective.length < 20 ||
+    /definir y construir|sin especificar/i.test(objective)
+  if (isGeneric) return fallback.description
+  const firstSentence = objective.split(/[.!?]/)[0].trim()
+  return `Skill para ${firstSentence.charAt(0).toLowerCase() + firstSentence.slice(1)}.`
+}
+
+function deriveInputs(
+  blueprint: StructuredProjectBlueprint,
+  fallback: DomainSkillDefinition,
+): DomainSkillInput[] {
+  // Use all non-generic entities (up to 4 total)
+  const domainEntities = blueprint.entities.filter((e) => !GENERIC_ENTITIES.has(e)).slice(0, 4)
+  if (domainEntities.length === 0) return fallback.inputs
+
+  return domainEntities.map((e) => ({
+    name: humanizeEntity(e),
+    description: `Instancia de ${humanizeEntity(e)} del sistema.`,
+  }))
+}
+
+function deriveOutputs(
+  blueprint: StructuredProjectBlueprint,
+  fallback: DomainSkillDefinition,
+): DomainSkillOutput[] {
+  if (blueprint.mvpScope.length === 0) return fallback.outputs
+
+  return blueprint.mvpScope.slice(0, 3).map((scope) => ({
+    name: capitalize(humanizeEntity(scope)),
+    description: `Resultado de procesar ${humanizeEntity(scope)} en el sistema.`,
+  }))
+}
+
+function deriveRules(
+  blueprint: StructuredProjectBlueprint,
+  fallback: DomainSkillDefinition,
+): DomainSkillRule[] {
+  // Keep up to 2 structural rules from the archetype as baseline
+  const archetypeRules = fallback.rules.slice(0, 2)
+
+  // Append constraint-derived rules from the blueprint
+  const constraintRules: DomainSkillRule[] = blueprint.constraints.slice(0, 2).map((c) => ({
+    name: humanizeEntity(c),
+    description: `Restricción confirmada: ${humanizeEntity(c)}.`,
+  }))
+
+  const combined = [...archetypeRules, ...constraintRules]
+  return combined.length > 0 ? combined : fallback.rules
+}
+
+function deriveExample(
+  blueprint: StructuredProjectBlueprint,
+  fallback: DomainSkillDefinition,
+): string {
+  const domainEntities = blueprint.entities.filter((e) => !GENERIC_ENTITIES.has(e))
+  if (domainEntities.length === 0) return fallback.example
+
+  const e0 = humanizeEntity(domainEntities[0])
+  const e1 = domainEntities[1] ? humanizeEntity(domainEntities[1]) : null
+  const s0 = blueprint.mvpScope[0]
+    ? humanizeEntity(blueprint.mvpScope[0]).toLowerCase()
+    : 'resultado'
+
+  return e1
+    ? `Registro de ${e0} con ${e1}: se procesa y actualiza ${s0} automáticamente.`
+    : `Registro de ${e0}: se procesa y actualiza ${s0} automáticamente.`
+}
+
+function buildBeginnerExplanation(
+  blueprint: StructuredProjectBlueprint,
+  skillName: string,
+): string {
+  const top = topDomainEntities(blueprint)
+  const s1 = 'Una skill es una capacidad reutilizable de tu sistema de IA.'
+
+  if (top.length === 0) {
+    return [
+      s1,
+      `Esta es tu skill de ${skillName}: automatiza el proceso principal de tu sistema.`,
+      'Úsala cada vez que este proceso necesite ejecutarse en tu proyecto.',
+    ].join(' ')
+  }
+
+  const plurals = top.map(humanizePlural)
+  const entitiesPhrase =
+    plurals.length === 2 ? joinWithConnector(plurals[0], plurals[1]) : plurals[0]
+
+  let s2: string
+  if (blueprint.mvpScope.length > 0) {
+    const scopeItems = blueprint.mvpScope
+      .slice(0, 2)
+      .map((s) => humanizeEntity(s).toLowerCase())
+    const scopePhrase =
+      scopeItems.length === 2
+        ? joinWithConnector(scopeItems[0], scopeItems[1])
+        : scopeItems[0]
+    s2 = `Esta gestiona tus ${entitiesPhrase}: al registrar o actualizar ${plurals[0]}, el sistema actualiza ${scopePhrase}.`
+  } else {
+    s2 = `Esta gestiona tus ${entitiesPhrase}: al registrar o actualizar ${plurals[0]}, el sistema actualiza el registro.`
+  }
+
+  const s3 = `Úsala cada vez que necesites trabajar con tus ${entitiesPhrase} en este proyecto.`
+  return `${s1} ${s2} ${s3}`
+}
+
+// ─── Content builder ──────────────────────────────────────────────────────────
+
 function formatItems<T extends { name: string; description: string }>(items: T[]): string {
   return items.map((item) => `- ${item.name}: ${item.description}`).join('\n')
 }
@@ -217,16 +399,37 @@ function marketplaceContext(blueprint: StructuredProjectBlueprint): string[] {
   if (blueprint.category !== 'marketplace') return []
 
   return [
-    blueprint.confirmedRequirements.includes('catalogo-con-contacto-local') && 'Venta local: el catalogo debe facilitar contacto o compra local.',
+    blueprint.confirmedRequirements.includes('catalogo-con-contacto-local') &&
+      'Venta local: el catalogo debe facilitar contacto o compra local.',
     blueprint.monetization.includes('venta-local') && 'Monetizacion confirmada: venta-local.',
-    blueprint.constraints.includes('checkout-online-pospuesto-a-fase-2') && 'Restriccion: checkout online pospuesto a fase 2.',
+    blueprint.constraints.includes('checkout-online-pospuesto-a-fase-2') &&
+      'Restriccion: checkout online pospuesto a fase 2.',
   ].filter((item): item is string => Boolean(item))
 }
 
-function buildContent(blueprint: StructuredProjectBlueprint, definition: DomainSkillDefinition): string {
-  const domainLabel = blueprint.subtype && blueprint.subtype !== 'generic'
-    ? `${blueprint.category} / ${blueprint.subtype}`
-    : blueprint.category
+function buildContent(
+  blueprint: StructuredProjectBlueprint,
+  definition: DomainSkillDefinition,
+): string {
+  const domainLabel =
+    blueprint.subtype && blueprint.subtype !== 'generic'
+      ? `${blueprint.category} / ${blueprint.subtype}`
+      : blueprint.category
+
+  const top = topDomainEntities(blueprint)
+  const topPluralPhrase =
+    top.length > 0
+      ? (() => {
+          const plurals = top.map(humanizePlural)
+          return plurals.length === 2
+            ? joinWithConnector(plurals[0], plurals[1])
+            : plurals[0]
+        })()
+      : null
+
+  const whenToUse = topPluralPhrase
+    ? `Usa esta skill cuando necesites gestionar ${topPluralPhrase} en el sistema.`
+    : `Usa esta skill cuando trabajes con un proyecto de tipo ${domainLabel} y necesites convertir requisitos confirmados en acciones operativas.`
 
   return [
     `# ${definition.name}`,
@@ -235,7 +438,7 @@ function buildContent(blueprint: StructuredProjectBlueprint, definition: DomainS
     definition.description,
     '',
     '## Cuándo usarla',
-    `Usa esta skill cuando trabajes con un proyecto de tipo ${domainLabel} y necesites convertir requisitos confirmados en acciones operativas.`,
+    whenToUse,
     '',
     '## Inputs esperados',
     formatItems(definition.inputs),
@@ -259,101 +462,51 @@ function buildContent(blueprint: StructuredProjectBlueprint, definition: DomainS
     '',
     '## Ejemplo breve',
     definition.example,
-  ].filter(Boolean).join('\n')
+  ]
+    .filter(Boolean)
+    .join('\n')
 }
 
-function applySubtypeToDefinition(
-  blueprint: StructuredProjectBlueprint,
-  definition: DomainSkillDefinition
-): DomainSkillDefinition {
-  if (!blueprint.subtype || blueprint.subtype === 'generic') return definition
-
-  if (blueprint.category === 'booking-system' && blueprint.subtype === 'salon-booking') {
-    return {
-      ...definition,
-      name: 'Gestión de reservas para peluquería',
-      description: 'Skill para gestionar reservas de peluqueria o salon, validando servicios, profesionales y disponibilidad.',
-    }
-  }
-
-  if (blueprint.category === 'booking-system' && blueprint.subtype === 'veterinary-booking') {
-    return {
-      ...definition,
-      name: 'Gestión de citas veterinarias',
-      description: 'Skill para gestionar citas veterinarias con cliente, mascota, servicio, profesional y recordatorios.',
-    }
-  }
-
-  if (blueprint.category === 'booking-system' && blueprint.subtype === 'restaurant-booking') {
-    return {
-      ...definition,
-      name: 'Gestión de reservas de restaurante',
-      description: 'Skill para gestionar reservas de mesas, horarios, comensales y confirmaciones.',
-    }
-  }
-
-  if (blueprint.category === 'marketplace' && blueprint.subtype === 'ecommerce') {
-    return {
-      ...definition,
-      name: 'Gestión ecommerce',
-      description: 'Skill para publicar productos, validar precios, preparar checkout y mantener catalogo de ecommerce.',
-    }
-  }
-
-  if (blueprint.category === 'marketplace' && blueprint.subtype === 'local-store') {
-    return {
-      ...definition,
-      name: 'Gestión de tienda local',
-      description: 'Skill para mantener catalogo, contacto local, precios y disponibilidad de una tienda local.',
-    }
-  }
-
-  if (blueprint.category === 'marketplace' && blueprint.subtype === 'multivendor-marketplace') {
-    return {
-      ...definition,
-      name: 'Gestión de marketplace multivendedor',
-      description: 'Skill para coordinar catalogo, vendedores, fichas, precios y reglas de publicacion multivendor.',
-    }
-  }
-
-  if (blueprint.category === 'course-platform' && blueprint.subtype === 'internal-training') {
-    return {
-      ...definition,
-      name: 'Gestión de formación interna',
-      description: 'Skill para estructurar formacion interna, alumnos empleados, progreso y acceso.',
-    }
-  }
-
-  if (blueprint.category === 'landing-page' && blueprint.subtype === 'lead-generation') {
-    return {
-      ...definition,
-      name: 'Captación de leads',
-      description: 'Skill para convertir trafico en leads con formulario, CTA y canal de seguimiento.',
-    }
-  }
-
-  return definition
-}
+// ─── Public API ───────────────────────────────────────────────────────────────
 
 export function generateDomainSkill(blueprint: StructuredProjectBlueprint): DomainSkillDraft {
-  const definition = applySubtypeToDefinition(blueprint, SKILL_DEFINITIONS[blueprint.category])
-  const content = buildContent(blueprint, definition)
+  const archetype = SKILL_DEFINITIONS[blueprint.category]
+
+  const name = deriveSkillName(blueprint, archetype)
+  const description = deriveSkillDescription(blueprint, archetype)
+  const inputs = deriveInputs(blueprint, archetype)
+  const outputs = deriveOutputs(blueprint, archetype)
+  const rules = deriveRules(blueprint, archetype)
+  const example = deriveExample(blueprint, archetype)
+  const beginnerExplanation = buildBeginnerExplanation(blueprint, name)
+
+  const derived: DomainSkillDefinition = {
+    name,
+    description,
+    category: archetype.category,
+    inputs,
+    outputs,
+    rules,
+    example,
+  }
+  const content = buildContent(blueprint, derived)
 
   return {
-    name: definition.name,
-    description: definition.description,
-    category: definition.category,
-    inputs: definition.inputs,
-    outputs: definition.outputs,
-    rules: definition.rules,
+    name,
+    description,
+    category: archetype.category,
+    inputs,
+    outputs,
+    rules,
     content,
+    beginnerExplanation,
     insertTarget: 'tarea',
     isExportable: true,
     compatibleSkill: {
-      name: definition.name,
-      description: definition.description,
+      name,
+      description,
       icon: 'N',
-      category: definition.category,
+      category: archetype.category,
       content,
       insertTarget: 'tarea',
       isExportable: true,
