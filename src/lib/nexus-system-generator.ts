@@ -1043,7 +1043,7 @@ function fillStepLabel(template: string, e0: string, e0p: string, e1: string): s
 
 export function generateWorkflowFromSkill(
   _idea: string,
-  _skillDraft = generateSkillFromPrompt(_idea),
+  _skillDraft?: NexusSkillDraft,
   blueprint?: StructuredProjectBlueprint
 ): NexusWorkflowDraft {
   const flow = blueprint ? CATEGORY_FLOW[blueprint.category] : CATEGORY_FLOW.custom
