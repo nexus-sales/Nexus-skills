@@ -89,6 +89,7 @@ export interface NexusWorkflowDraft {
   description: string
   steps: WorkflowStep[]
   compatibleWorkflow?: Partial<Workflow>
+  beginnerExplanation?: string
 }
 
 export interface NexusAgentDraft {
