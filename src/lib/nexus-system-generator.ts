@@ -1404,6 +1404,7 @@ export function mergeWithApiArtifacts(
         ? artifacts.workflowDraft.steps
         : local.workflowDraft.steps,
       compatibleWorkflow: local.workflowDraft.compatibleWorkflow,
+      beginnerExplanation: local.workflowDraft.beginnerExplanation,
     },
     agentDraft: {
       ...artifacts.agentDraft,
