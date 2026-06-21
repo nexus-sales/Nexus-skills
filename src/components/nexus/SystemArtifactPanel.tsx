@@ -459,6 +459,12 @@ export function SystemArtifactPanel({
         <ArtifactCard title="Skill reutilizable" eyebrow="03">
           <div className="space-y-4">
             <p className="text-sm text-label">{system.skillDraft.description}</p>
+            {system.skillDraft.beginnerExplanation && (
+              <div className="rounded-[8px] border border-accent-blue/20 bg-accent-blue/5 px-3 py-3">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-accent-blue">Qué hace para ti</p>
+                <p className="text-sm leading-relaxed text-label">{system.skillDraft.beginnerExplanation}</p>
+              </div>
+            )}
             <EditableText
               label="Contenido"
               value={system.skillDraft.content}
