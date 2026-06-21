@@ -81,6 +81,7 @@ export interface NexusSkillDraft {
   insertTarget: Skill['insertTarget']
   isExportable: boolean
   compatibleSkill?: Partial<Skill>
+  beginnerExplanation?: string
 }
 
 export interface NexusWorkflowDraft {
