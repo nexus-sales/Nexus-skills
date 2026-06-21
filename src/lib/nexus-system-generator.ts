@@ -1264,6 +1264,7 @@ export function mergeWithApiArtifacts(
     skillDraft: {
       ...artifacts.skillDraft,
       compatibleSkill: local.skillDraft.compatibleSkill,
+      beginnerExplanation: local.skillDraft.beginnerExplanation,
     },
     workflowDraft: {
       ...artifacts.workflowDraft,
