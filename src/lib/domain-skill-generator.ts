@@ -336,15 +336,8 @@ function deriveExample(
   const domainEntities = blueprint.entities.filter((e) => !GENERIC_ENTITIES.has(e))
   if (domainEntities.length === 0) return fallback.example
 
-  const e0 = humanizeEntity(domainEntities[0])
-  const e1 = domainEntities[1] ? humanizeEntity(domainEntities[1]) : null
-  const s0 = blueprint.mvpScope[0]
-    ? humanizeEntity(blueprint.mvpScope[0]).toLowerCase()
-    : 'resultado'
-
-  return e1
-    ? `Registro de ${e0} con ${e1}: se procesa y actualiza ${s0} automáticamente.`
-    : `Registro de ${e0}: se procesa y actualiza ${s0} automáticamente.`
+  const e0Plural = humanizePlural(domainEntities[0])
+  return `Registro de ${e0Plural}: el sistema organiza la información y la mantiene lista para usar.`
 }
 
 function buildBeginnerExplanation(
@@ -366,20 +359,7 @@ function buildBeginnerExplanation(
   const entitiesPhrase =
     plurals.length === 2 ? joinWithConnector(plurals[0], plurals[1]) : plurals[0]
 
-  let s2: string
-  if (blueprint.mvpScope.length > 0) {
-    const scopeItems = blueprint.mvpScope
-      .slice(0, 2)
-      .map((s) => humanizeEntity(s).toLowerCase())
-    const scopePhrase =
-      scopeItems.length === 2
-        ? joinWithConnector(scopeItems[0], scopeItems[1])
-        : scopeItems[0]
-    s2 = `Esta gestiona tus ${entitiesPhrase}: al registrar o actualizar ${plurals[0]}, el sistema actualiza ${scopePhrase}.`
-  } else {
-    s2 = `Esta gestiona tus ${entitiesPhrase}: al registrar o actualizar ${plurals[0]}, el sistema actualiza el registro.`
-  }
-
+  const s2 = `Esta se encarga de tus ${entitiesPhrase}: cada vez que registras o actualizas ${plurals[0]}, el sistema organiza la información y la deja lista para usar.`
   const s3 = `Úsala cada vez que necesites trabajar con tus ${entitiesPhrase} en este proyecto.`
   return `${s1} ${s2} ${s3}`
 }
